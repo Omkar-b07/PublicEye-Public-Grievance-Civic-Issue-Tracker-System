@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MOCK_ISSUES } from './Dashboard';
+import { getIssues, updateIssueStatus, deleteIssue } from '../utils/storage';
 import { ShieldAlert, Search, Trash2, Edit2, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import StatusBadge from '../components/StatusBadge';
@@ -21,8 +21,7 @@ const Admin = () => {
         try {
             await new Promise(resolve => setTimeout(resolve, 800));
 
-            const localIssues = JSON.parse(localStorage.getItem('added_issues') || '[]');
-            setIssues([...localIssues, ...MOCK_ISSUES]);
+            setIssues(getIssues());
         } catch (error) {
             toast.error('Failed to load issues for admin.');
         } finally {
@@ -40,16 +39,7 @@ const Admin = () => {
             // In a real app: await api.patch(`/issues/${id}`, { status: editStatus });
             await new Promise(resolve => setTimeout(resolve, 500));
 
-            const updatedIssues = issues.map(issue =>
-                issue.id === id ? { ...issue, status: editStatus } : issue
-            );
-
-            // Update local storage for demo purposes
-            const localIssues = JSON.parse(localStorage.getItem('added_issues') || '[]');
-            const updatedLocal = localIssues.map(issue =>
-                issue.id === id ? { ...issue, status: editStatus } : issue
-            );
-            localStorage.setItem('added_issues', JSON.stringify(updatedLocal));
+            const updatedIssues = updateIssueStatus(id, editStatus);
 
             setIssues(updatedIssues);
             setEditingId(null);
@@ -68,12 +58,7 @@ const Admin = () => {
             // In a real app: await api.delete(`/issues/${id}`);
             await new Promise(resolve => setTimeout(resolve, 500));
 
-            const updatedIssues = issues.filter(issue => issue.id !== id);
-
-            // Update local storage
-            const localIssues = JSON.parse(localStorage.getItem('added_issues') || '[]');
-            const updatedLocal = localIssues.filter(issue => issue.id !== id);
-            localStorage.setItem('added_issues', JSON.stringify(updatedLocal));
+            const updatedIssues = deleteIssue(id);
 
             setIssues(updatedIssues);
             toast.success('Issue deleted successfully');

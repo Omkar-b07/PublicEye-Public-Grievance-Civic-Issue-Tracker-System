@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MOCK_ISSUES } from './Dashboard';
+import { getIssues } from '../utils/storage';
 import { Megaphone, MessageSquare, Clock, MapPin, Share2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import StatusBadge from '../components/StatusBadge';
@@ -17,8 +17,7 @@ const SeniorAuthority = () => {
         setLoading(true);
         try {
             await new Promise(resolve => setTimeout(resolve, 800));
-            const localIssues = JSON.parse(localStorage.getItem('added_issues') || '[]');
-            const allIssues = [...localIssues, ...MOCK_ISSUES];
+            const allIssues = getIssues();
 
             // Only show issues marked as late_remark
             const lateIssues = allIssues.filter(issue => issue.status === 'late_remark');

@@ -4,8 +4,7 @@ import { ArrowLeft, MapPin, Calendar, LayoutList, Image as ImageIcon } from 'luc
 import MapComponent from '../components/MapComponent';
 import StatusBadge from '../components/StatusBadge';
 import Loader from '../components/Loader';
-import { MOCK_ISSUES } from './Dashboard';
-
+import { getIssues } from '../utils/storage';
 const IssueDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -19,8 +18,7 @@ const IssueDetail = () => {
                 await new Promise(resolve => setTimeout(resolve, 800));
 
                 // Mock API call to get specific issue
-                const localIssues = JSON.parse(localStorage.getItem('added_issues') || '[]');
-                const allIssues = [...localIssues, ...MOCK_ISSUES];
+                const allIssues = getIssues();
                 const found = allIssues.find(i => i.id.toString() === id);
 
                 if (found) {

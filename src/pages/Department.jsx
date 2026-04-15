@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MOCK_ISSUES } from './Dashboard';
+import { getIssues, updateIssueStatus as updateIssueStatusInStorage } from '../utils/storage';
 import { Building2, Search, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import StatusBadge from '../components/StatusBadge';
@@ -18,8 +18,7 @@ const Department = () => {
         setLoading(true);
         try {
             await new Promise(resolve => setTimeout(resolve, 800));
-            const localIssues = JSON.parse(localStorage.getItem('added_issues') || '[]');
-            const allIssues = [...localIssues, ...MOCK_ISSUES];
+            const allIssues = getIssues();
 
             // Filter strictly for this department's assigned issues
             // For mock purposes, we show all 'assigned_to_dept' issues
@@ -40,11 +39,7 @@ const Department = () => {
             const updatedIssues = issues.filter(issue => issue.id !== id);
 
             // Update local storage
-            const localIssues = JSON.parse(localStorage.getItem('added_issues') || '[]');
-            const updatedLocal = localIssues.map(issue =>
-                issue.id === id ? { ...issue, status: newStatus } : issue
-            );
-            localStorage.setItem('added_issues', JSON.stringify(updatedLocal));
+            updateIssueStatusInStorage(id, newStatus);
 
             setIssues(updatedIssues);
 

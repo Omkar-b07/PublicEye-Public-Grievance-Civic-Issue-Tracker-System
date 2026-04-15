@@ -5,6 +5,7 @@ import { Send, MapPin as MapPinIcon, LayoutList, AlignLeft, Info } from 'lucide-
 import MapComponent from '../components/MapComponent';
 import ImageUploader from '../components/ImageUploader';
 import { useAuth } from '../context/AuthContext';
+import { addIssue } from '../utils/storage';
 
 const CATEGORIES = [
     'Roads & Sidewalks',
@@ -63,9 +64,6 @@ const ReportIssue = () => {
 
             await new Promise(resolve => setTimeout(resolve, 1500));
 
-            // For demo purposes, we save it to localStorage so it shows up in the dashboard
-            const existingIssues = JSON.parse(localStorage.getItem('added_issues') || '[]');
-
             // Convert image to base64 if it exists for local storage demo
             let imageUrl = null;
             if (image) {
@@ -73,8 +71,10 @@ const ReportIssue = () => {
             }
 
             const newIssue = {
-                id: Date.now(),
-                ...formData,
+                title: formData.title,
+                description: formData.description,
+                address: formData.address,
+                category: formData.category,
                 lat: location.lat,
                 lng: location.lng,
                 locationName: 'Reported Location',
@@ -84,7 +84,7 @@ const ReportIssue = () => {
                 userId: user?.id || 1
             };
 
-            localStorage.setItem('added_issues', JSON.stringify([newIssue, ...existingIssues]));
+            addIssue(newIssue);
 
             toast.success('Issue reported successfully!');
             navigate('/dashboard');

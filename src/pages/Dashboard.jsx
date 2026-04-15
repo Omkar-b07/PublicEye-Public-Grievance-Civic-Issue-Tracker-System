@@ -3,75 +3,7 @@ import { Link } from 'react-router-dom';
 import { Search, Filter, Plus } from 'lucide-react';
 import IssueCard from '../components/IssueCard';
 import Loader from '../components/Loader';
-
-// Mock Data
-export const MOCK_ISSUES = [
-    {
-        id: 1,
-        title: 'Pothole on Main Street',
-        description: 'Deep pothole causing traffic issues and potential vehicle damage near the central park intersection.',
-        category: 'Roads',
-        status: 'pending',
-        image: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&q=80&w=800',
-        locationName: '123 Main St, Downtown',
-        lat: 51.505,
-        lng: -0.09,
-        createdAt: '2023-10-15T08:30:00Z',
-        userId: 1
-    },
-    {
-        id: 2,
-        title: 'Broken Streetlights in Suburb',
-        description: 'Three consecutive streetlights are out, making the road really dark and unsafe at night.',
-        category: 'Lighting',
-        status: 'in progress',
-        image: 'https://images.unsplash.com/photo-1618244972963-dbee1a7edc95?auto=format&fit=crop&q=80&w=800',
-        locationName: 'Oakwood Avenue',
-        lat: 51.51,
-        lng: -0.1,
-        createdAt: '2023-10-12T19:15:00Z',
-        userId: 2
-    },
-    {
-        id: 3,
-        title: 'Overflowing Garbage Bin',
-        description: 'Public bin at the bus stop has been overflowing for 3 days. Trash is blowing onto the street.',
-        category: 'Sanitation',
-        status: 'resolved',
-        image: 'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?auto=format&fit=crop&q=80&w=800',
-        locationName: 'Station Bus Stop',
-        lat: 51.515,
-        lng: -0.09,
-        createdAt: '2023-10-10T14:20:00Z',
-        userId: 1
-    },
-    {
-        id: 4,
-        title: 'Fallen Tree Branch',
-        description: 'Large branch blocking the pedestrian sidewalk after yesterday\'s storm.',
-        category: 'Parks',
-        status: 'pending',
-        image: 'https://images.unsplash.com/photo-1516086884672-870fc4411132?auto=format&fit=crop&q=80&w=800',
-        locationName: 'North Lake Park',
-        lat: 51.52,
-        lng: -0.08,
-        createdAt: '2023-10-16T09:45:00Z',
-        userId: 3
-    },
-    {
-        id: 5,
-        title: 'Water Leak',
-        description: 'Continuous flow of water coming from the pavement near the supermarket.',
-        category: 'Water',
-        status: 'rejected',
-        image: null,
-        locationName: 'Market Square',
-        lat: 51.50,
-        lng: -0.08,
-        createdAt: '2023-10-05T11:00:00Z',
-        userId: 2
-    }
-];
+import { getIssues } from '../utils/storage';
 
 const Dashboard = () => {
     const [issues, setIssues] = useState([]);
@@ -90,9 +22,7 @@ const Dashboard = () => {
                 // const response = await api.get('/issues');
                 // setIssues(response.data);
 
-                // If there are issues in localStorage (from adding a new one), we merge them for demo purposes
-                const localIssues = JSON.parse(localStorage.getItem('added_issues') || '[]');
-                setIssues([...localIssues, ...MOCK_ISSUES]);
+                setIssues(getIssues());
             } catch (error) {
                 console.error("Failed to fetch issues", error);
             } finally {
@@ -137,8 +67,8 @@ const Dashboard = () => {
                     { label: 'Resolved', value: issues.filter(i => i.status === 'resolved').length, color: 'text-green-600', bg: 'bg-green-50/50' }
                 ].map((stat, idx) => (
                     <div key={idx} className={`glass-card p-5 flex flex-col items-center justify-center text-center transition-transform hover:scale-105 duration-300 border-t-4 ${stat.label === 'Pending' ? 'border-t-yellow-400' :
-                            stat.label === 'In Progress' ? 'border-t-purple-400' :
-                                stat.label === 'Resolved' ? 'border-t-green-400' : 'border-t-blue-400'
+                        stat.label === 'In Progress' ? 'border-t-purple-400' :
+                            stat.label === 'Resolved' ? 'border-t-green-400' : 'border-t-blue-400'
                         }`}>
                         <span className="text-4xl font-extrabold text-gray-800 tracking-tight">{stat.value}</span>
                         <span className={`text-sm font-semibold mt-2 ${stat.color} uppercase tracking-wider`}>{stat.label}</span>
