@@ -31,17 +31,26 @@ const ProtectedRoute = ({ children, requireRole }) => {
 };
 
 function App() {
-  const { token } = useAuth();
+  const { token, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0f172a', color: '#94a3b8', fontSize: '1.1rem' }}>
+        Loading...
+      </div>
+    );
+  }
 
   return (
     <BrowserRouter>
       <Toaster position="top-right" />
       <Routes>
+        {/* Default: always go to login unless already authenticated */}
+        <Route path="/" element={token ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} />
         <Route path="/login" element={token ? <Navigate to="/dashboard" replace /> : <Login />} />
         <Route path="/signup" element={token ? <Navigate to="/dashboard" replace /> : <Signup />} />
 
-        <Route path="/" element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="report" element={<ReportIssue />} />
           <Route path="issue/:id" element={<IssueDetail />} />

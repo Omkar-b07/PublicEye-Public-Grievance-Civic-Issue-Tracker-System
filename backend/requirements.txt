@@ -1,12 +1,12 @@
-fastapi==0.104.1
+fastapi>=0.115.0
 uvicorn==0.24.0
 sqlalchemy>=2.0.30
-psycopg[binary]
 alembic>=1.13.0
 python-dotenv==1.0.0
 bcrypt==4.1.1
 python-jose[cryptography]==3.3.0
 requests==2.31.0
-supabase==2.0.3
 pydantic-settings==2.1.0
+pydantic[email]>=2.0.0
 python-multipart==0.0.6
+aiofiles>=23.2.1

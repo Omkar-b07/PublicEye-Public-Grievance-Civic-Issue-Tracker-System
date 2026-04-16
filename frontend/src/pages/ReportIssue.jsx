@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Send, MapPin as MapPinIcon, LayoutList, AlignLeft, Info } from 'lucide-react';
+import { Send, MapPin as MapPinIcon, LayoutList, AlignLeft, Info, Flag } from 'lucide-react';
 import MapComponent from '../components/MapComponent';
 import ImageUploader from '../components/ImageUploader';
-import { useAuth } from '../context/AuthContext';
-import { addIssue } from '../utils/storage';
+import { createIssue } from '../api/issuesApi';
 
 const CATEGORIES = [
     'Roads & Sidewalks',
@@ -14,23 +13,29 @@ const CATEGORIES = [
     'Street Lighting',
     'Parks & Recreation',
     'Public Safety',
-    'Other'
+    'Other',
+];
+
+const PRIORITIES = [
+    { value: 'HIGH', label: '🔴 High', desc: 'Urgent — safety risk or major disruption' },
+    { value: 'MEDIUM', label: '🟡 Medium', desc: 'Moderate impact on daily life' },
+    { value: 'LOW', label: '🟢 Low', desc: 'Minor inconvenience' },
 ];
 
 const ReportIssue = () => {
-    const { user } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
 
     const [formData, setFormData] = useState({
         title: '',
         description: '',
-        address: '',
-        category: CATEGORIES[0]
+        category: CATEGORIES[0],
+        priority: 'MEDIUM',
     });
 
     const [image, setImage] = useState(null);
     const [location, setLocation] = useState(null);
+    const [address, setAddress] = useState('');
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -44,7 +49,6 @@ const ReportIssue = () => {
             toast.error('Please fill in all required text fields.');
             return;
         }
-
         if (!location) {
             toast.error('Please select a location on the map.');
             return;
@@ -52,44 +56,22 @@ const ReportIssue = () => {
 
         setLoading(true);
         try {
-            // Simulate API call and saving to FormData
-            // const submitData = new FormData();
-            // submitData.append('title', formData.title);
-            // submitData.append('description', formData.description);
-            // submitData.append('category', formData.category);
-            // submitData.append('lat', position.lat);
-            // submitData.append('lng', position.lng);
-            // if (image) submitData.append('image', image);
-            // await api.post('/issues', submitData);
+            const submitData = new FormData();
+            submitData.append('title', formData.title);
+            submitData.append('description', formData.description);
+            submitData.append('category', formData.category);
+            submitData.append('priority', formData.priority);
+            submitData.append('latitude', location.lat);
+            submitData.append('longitude', location.lng);
+            if (address) submitData.append('address', address);
+            if (image) submitData.append('image', image);
 
-            await new Promise(resolve => setTimeout(resolve, 1500));
-
-            // Convert image to base64 if it exists for local storage demo
-            let imageUrl = null;
-            if (image) {
-                imageUrl = URL.createObjectURL(image);
-            }
-
-            const newIssue = {
-                title: formData.title,
-                description: formData.description,
-                address: formData.address,
-                category: formData.category,
-                lat: location.lat,
-                lng: location.lng,
-                locationName: 'Reported Location',
-                image: imageUrl,
-                status: 'pending_admin',
-                createdAt: new Date().toISOString(),
-                userId: user?.id || 1
-            };
-
-            addIssue(newIssue);
-
-            toast.success('Issue reported successfully!');
+            await createIssue(submitData);
+            toast.success('Issue reported successfully! It will be reviewed by admin.');
             navigate('/dashboard');
         } catch (error) {
-            toast.error('Failed to report issue. Please try again.');
+            const msg = error?.response?.data?.detail || 'Failed to report issue. Please try again.';
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
@@ -108,15 +90,14 @@ const ReportIssue = () => {
                     <div className="p-6 md:w-1/2 border-b md:border-b-0 md:border-r border-gray-200">
                         <form onSubmit={handleSubmit} className="space-y-5">
 
+                            {/* Title */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
                                     <AlignLeft size={16} className="text-gray-400" />
                                     Issue Title <span className="text-red-500">*</span>
                                 </label>
                                 <input
-                                    type="text"
-                                    name="title"
-                                    value={formData.title}
+                                    type="text" name="title" value={formData.title}
                                     onChange={handleInputChange}
                                     placeholder="e.g., Deep pothole on Main St."
                                     className="w-full px-4 py-3 bg-white/60 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-300 placeholder-gray-400 shadow-sm"
@@ -124,77 +105,95 @@ const ReportIssue = () => {
                                 />
                             </div>
 
+                            {/* Category */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
                                     <LayoutList size={16} className="text-gray-400" />
                                     Category <span className="text-red-500">*</span>
                                 </label>
                                 <select
-                                    name="category"
-                                    value={formData.category}
-                                    onChange={handleInputChange}
+                                    name="category" value={formData.category} onChange={handleInputChange}
                                     className="w-full px-4 py-3 bg-white/60 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-300 shadow-sm text-gray-700"
                                     required
                                 >
-                                    {CATEGORIES.map(cat => (
-                                        <option key={cat} value={cat}>{cat}</option>
-                                    ))}
+                                    {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                                 </select>
                             </div>
 
+                            {/* Priority */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                                    <Flag size={16} className="text-gray-400" />
+                                    Priority <span className="text-red-500">*</span>
+                                </label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {PRIORITIES.map(p => (
+                                        <button
+                                            key={p.value}
+                                            type="button"
+                                            onClick={() => setFormData(prev => ({ ...prev, priority: p.value }))}
+                                            className={`p-2.5 rounded-xl text-sm font-medium border-2 transition-all duration-200 text-center ${
+                                                formData.priority === p.value
+                                                    ? p.value === 'HIGH' ? 'border-red-500 bg-red-50 text-red-700'
+                                                        : p.value === 'MEDIUM' ? 'border-yellow-500 bg-yellow-50 text-yellow-700'
+                                                        : 'border-green-500 bg-green-50 text-green-700'
+                                                    : 'border-gray-200 bg-white/60 text-gray-600 hover:border-gray-300'
+                                            }`}
+                                        >
+                                            <div>{p.label}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Description */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
                                     <Info size={16} className="text-gray-400" />
                                     Description <span className="text-red-500">*</span>
                                 </label>
                                 <textarea
-                                    name="description"
-                                    value={formData.description}
-                                    onChange={handleInputChange}
+                                    name="description" value={formData.description} onChange={handleInputChange}
                                     rows="4"
                                     placeholder="Provide more details about the issue..."
                                     className="w-full px-4 py-3 bg-white/60 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-300 resize-none placeholder-gray-400 shadow-sm"
                                     required
-                                ></textarea>
+                                />
                             </div>
 
+                            {/* Address (auto-filled from map click) */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
                                     <MapPinIcon size={16} className="text-gray-400" />
-                                    Address <span className="text-red-500">*</span>
+                                    Address <span className="text-xs text-gray-400 font-normal">(auto-filled from map)</span>
                                 </label>
                                 <textarea
-                                    name="address"
-                                    value={formData.address}
-                                    onChange={handleInputChange}
+                                    value={address}
+                                    onChange={(e) => setAddress(e.target.value)}
                                     rows="2"
-                                    placeholder="Click 'Upload Address' on the map popup to fill this, or type manually..."
+                                    placeholder="Click on the map and press 'Upload Address', or type manually..."
                                     className="w-full px-4 py-3 bg-white/60 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-300 resize-none placeholder-gray-400 shadow-sm"
-                                    required
-                                ></textarea>
+                                />
                             </div>
 
                             <ImageUploader onImageChange={setImage} selectedImage={image} />
 
+                            {/* Desktop Submit */}
                             <div className="pt-4 mt-6 border-t border-gray-100 hidden md:block">
                                 <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className={`w-full flex justify-center items-center gap-2 py-3.5 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:shadow-blue-500/25 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                    type="submit" disabled={loading}
+                                    className={`w-full flex justify-center items-center gap-2 py-3.5 px-4 rounded-xl shadow-md text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:shadow-blue-500/25 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
                                 >
                                     {loading ? (
                                         <span className="flex items-center gap-2">
-                                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                                             </svg>
-                                            Submitting...
+                                            Submitting to server...
                                         </span>
                                     ) : (
-                                        <>
-                                            <Send size={18} />
-                                            Submit Report
-                                        </>
+                                        <><Send size={18} />Submit Report</>
                                     )}
                                 </button>
                             </div>
@@ -205,13 +204,13 @@ const ReportIssue = () => {
                     <div className="p-6 md:w-1/2 bg-gray-50/50 flex flex-col relative">
                         <div className="mb-4">
                             <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                                <MapPinIcon size={16} className={location ? "text-blue-500" : "text-gray-400"} />
+                                <MapPinIcon size={16} className={location ? 'text-blue-500' : 'text-gray-400'} />
                                 Location <span className="text-red-500">*</span>
                             </label>
                             <p className="text-xs text-gray-500 mb-2">
                                 {location
-                                    ? `Selected: ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`
-                                    : 'Click on the map to pinpoint the exact location of the issue.'}
+                                    ? `✅ Selected: ${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}`
+                                    : 'Click anywhere on the map to pin the exact location.'}
                             </p>
                         </div>
 
@@ -219,17 +218,16 @@ const ReportIssue = () => {
                             <MapComponent
                                 onLocationSelect={(lat, lng) => setLocation({ lat, lng })}
                                 selectedPosition={location}
-                                onAddressConfirm={(address) => setFormData(prev => ({ ...prev, address }))}
+                                onAddressConfirm={(addr) => setAddress(addr)}
                                 height="100%"
                             />
                         </div>
 
-                        {/* Mobile Submit Button */}
+                        {/* Mobile Submit */}
                         <div className="mt-6 md:hidden">
                             <button
-                                onClick={handleSubmit}
-                                disabled={loading}
-                                className={`w-full flex justify-center items-center gap-2 py-3.5 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:shadow-blue-500/25 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                onClick={handleSubmit} disabled={loading}
+                                className={`w-full flex justify-center items-center gap-2 py-3.5 px-4 rounded-xl shadow-md text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-purple-600 transition-all duration-300 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
                             >
                                 {loading ? 'Submitting...' : 'Submit Report'}
                             </button>
