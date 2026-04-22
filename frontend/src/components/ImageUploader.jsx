@@ -15,6 +15,15 @@ const ImageUploader = ({ onImageChange, selectedImage }) => {
         }
     }, []);
 
+    const handleFile = useCallback((file) => {
+        // Only accept images
+        if (!file.type.match('image.*')) {
+            alert('Please upload an image file.');
+            return;
+        }
+        onImageChange(file);
+    }, [onImageChange]);
+
     const handleDrop = useCallback((e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -23,22 +32,13 @@ const ImageUploader = ({ onImageChange, selectedImage }) => {
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
             handleFile(e.dataTransfer.files[0]);
         }
-    }, []);
+    }, [handleFile]);
 
     const handleChange = (e) => {
         e.preventDefault();
         if (e.target.files && e.target.files[0]) {
             handleFile(e.target.files[0]);
         }
-    };
-
-    const handleFile = (file) => {
-        // Only accept images
-        if (!file.type.match('image.*')) {
-            alert('Please upload an image file.');
-            return;
-        }
-        onImageChange(file);
     };
 
     const removeImage = (e) => {

@@ -12,10 +12,13 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         navigate('/login');
     };
 
-    const navItems = [
-        { name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
-        { name: 'Report Issue', path: '/report', icon: <PlusCircle size={20} /> },
-    ];
+    const navItems = [];
+
+    // Only allow citizens to see the public feed and report issues
+    if (user?.role === 'citizen' || !user?.role) {
+        navItems.push({ name: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} /> });
+        navItems.push({ name: 'Report Issue', path: '/report', icon: <PlusCircle size={20} /> });
+    }
 
     if (user?.role === 'admin') {
         navItems.push({ name: 'Admin Panel', path: '/admin', icon: <ShieldAlert size={20} /> });

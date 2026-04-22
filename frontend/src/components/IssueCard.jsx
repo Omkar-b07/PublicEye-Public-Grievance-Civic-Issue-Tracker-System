@@ -40,8 +40,9 @@ const IssueCard = ({ issue, onUpvoteChange }) => {
     };
 
     // Build image src — backend images have paths like /static/uploads/...
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const imageSrc = issue.image_url
-        ? (issue.image_url.startsWith('http') ? issue.image_url : `http://localhost:8000${issue.image_url}`)
+        ? (issue.image_url.startsWith('http') ? issue.image_url : `${apiUrl}${issue.image_url}`)
         : null;
 
     return (

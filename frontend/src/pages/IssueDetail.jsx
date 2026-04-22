@@ -87,6 +87,7 @@ const IssueDetail = () => {
     if (!issue) return null;
 
     const priority = PRIORITY_CONFIG[issue.priority] || PRIORITY_CONFIG.MEDIUM;
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
     return (
         <div className="max-w-4xl mx-auto pb-10">
@@ -153,12 +154,12 @@ const IssueDetail = () => {
                             <>
                                 <h3 className="text-xs font-bold text-indigo-900/70 uppercase tracking-widest mb-3">Attached Image</h3>
                                 <a
-                                    href={`http://localhost:8000${issue.image_url}`}
+                                    href={issue.image_url.startsWith('http') ? issue.image_url : `${apiUrl}${issue.image_url}`}
                                     target="_blank" rel="noopener noreferrer"
                                     className="block rounded-xl overflow-hidden border border-white/60 shadow-sm"
                                 >
                                     <img
-                                        src={`http://localhost:8000${issue.image_url}`}
+                                        src={issue.image_url.startsWith('http') ? issue.image_url : `${apiUrl}${issue.image_url}`}
                                         alt={issue.title}
                                         className="w-full h-auto max-h-[400px] object-cover hover:opacity-90 transition-opacity"
                                     />

@@ -50,8 +50,16 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
     };
 
+    const updateProfile = async (updateData) => {
+        const res = await api.put('/auth/me', updateData, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        setUser(res.data);
+        return res.data;
+    };
+
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+        <AuthContext.Provider value={{ user, token, login, logout, updateProfile, loading }}>
             {!loading && children}
         </AuthContext.Provider>
     );

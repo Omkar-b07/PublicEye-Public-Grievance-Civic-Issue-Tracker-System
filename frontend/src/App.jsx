@@ -14,6 +14,13 @@ import Admin from './pages/Admin';
 import Department from './pages/Department';
 import SeniorAuthority from './pages/SeniorAuthority';
 
+const getHomeRoute = (role) => {
+  if (role === 'admin') return '/admin';
+  if (role === 'department') return '/department';
+  if (role === 'senior_authority') return '/senior-authority';
+  return '/dashboard'; // default citizen view
+};
+
 const ProtectedRoute = ({ children, requireRole }) => {
   const { user, token } = useAuth();
 
@@ -22,16 +29,15 @@ const ProtectedRoute = ({ children, requireRole }) => {
   }
 
   // If a specific role is required, ensure the user has it.
-  // Exception: Let admins see everything for testing purposes if desired, but for now strict roles.
   if (requireRole && user?.role !== requireRole) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={getHomeRoute(user?.role)} replace />;
   }
 
   return children;
 };
 
 function App() {
-  const { token, loading } = useAuth();
+  const { token, loading, user } = useAuth();
 
   if (loading) {
     return (
@@ -46,9 +52,9 @@ function App() {
       <Toaster position="top-right" />
       <Routes>
         {/* Default: always go to login unless already authenticated */}
-        <Route path="/" element={token ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} />
-        <Route path="/login" element={token ? <Navigate to="/dashboard" replace /> : <Login />} />
-        <Route path="/signup" element={token ? <Navigate to="/dashboard" replace /> : <Signup />} />
+        <Route path="/" element={token ? <Navigate to={getHomeRoute(user?.role)} replace /> : <Navigate to="/login" replace />} />
+        <Route path="/login" element={token ? <Navigate to={getHomeRoute(user?.role)} replace /> : <Login />} />
+        <Route path="/signup" element={token ? <Navigate to={getHomeRoute(user?.role)} replace /> : <Signup />} />
 
         <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
           <Route path="dashboard" element={<Dashboard />} />

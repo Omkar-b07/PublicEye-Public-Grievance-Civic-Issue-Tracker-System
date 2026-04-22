@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ShieldAlert, Search, Trash2, Check, X, AlertCircle, Copy } from 'lucide-react';
+import { ShieldAlert, Search, Trash2, Check, X, AlertCircle, Copy, BarChart2, List as ListIcon } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import toast from 'react-hot-toast';
 import StatusBadge from '../components/StatusBadge';
 import Loader from '../components/Loader';
@@ -15,7 +16,153 @@ const PRIORITY_COLORS = {
     LOW: 'bg-green-100 text-green-700 border-green-200',
 };
 
+const processAnalytics = (issues) => {
+    const categoryCount = {};
+    const statusCount = {};
+    const priorityCount = {};
+    const areaCount = {};
+
+    issues.forEach(i => {
+        categoryCount[i.category] = (categoryCount[i.category] || 0) + 1;
+        statusCount[i.status] = (statusCount[i.status] || 0) + 1;
+        priorityCount[i.priority] = (priorityCount[i.priority] || 0) + 1;
+        
+        let area = "Unknown";
+        if (i.address) {
+            area = i.address.split(',')[0].trim();
+            if (area.length > 20) area = area.substring(0, 20) + '...';
+        }
+        areaCount[area] = (areaCount[area] || 0) + 1;
+    });
+
+    const categoryData = Object.keys(categoryCount).map(k => ({ name: k, value: categoryCount[k] }));
+    const statusData = Object.keys(statusCount).map(k => ({ name: k, value: statusCount[k] }));
+    const priorityData = Object.keys(priorityCount).map(k => ({ name: k, value: priorityCount[k] }));
+    let areaData = Object.keys(areaCount).map(k => ({ name: k, value: areaCount[k] }));
+    
+    areaData.sort((a,b) => b.value - a.value);
+    areaData = areaData.slice(0, 10);
+
+    return { categoryData, statusData, priorityData, areaData };
+};
+
+const AnalyticsView = ({ issues }) => {
+    const { categoryData, statusData, priorityData, areaData } = processAnalytics(issues);
+    const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
+
+    return (
+        <div className="space-y-6 animate-fade-in mt-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="glass-card p-6 rounded-2xl flex flex-col justify-center items-center h-full min-h-[120px]">
+                    <h3 className="text-sm font-semibold tracking-wider text-gray-500 uppercase mb-2">Total Reports</h3>
+                    <span className="text-4xl font-bold text-gray-900">{issues.length}</span>
+                </div>
+                <div className="glass-card p-6 rounded-2xl flex flex-col justify-center items-center h-full min-h-[120px]">
+                    <h3 className="text-sm font-semibold tracking-wider text-green-600/80 uppercase mb-2">Resolved</h3>
+                    <span className="text-4xl font-bold text-green-600">
+                        {issues.filter(i => i.status === 'RESOLVED').length}
+                    </span>
+                </div>
+                <div className="glass-card p-6 rounded-2xl flex flex-col justify-center items-center h-full min-h-[120px]">
+                    <h3 className="text-sm font-semibold tracking-wider text-orange-600/80 uppercase mb-2">Action Required</h3>
+                    <span className="text-4xl font-bold text-orange-600">
+                        {issues.filter(i => ['PENDING', 'VERIFIED'].includes(i.status)).length}
+                    </span>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Reports by Area (Horizontal Bar) */}
+                <div className="glass-card p-6 rounded-2xl">
+                    <h3 className="text-lg font-bold text-gray-900 mb-6">Reports by Area (Top 10)</h3>
+                    <div className="h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={areaData} layout="vertical" margin={{ top: 5, right: 30, left: 30, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.3} />
+                                <XAxis type="number" />
+                                <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 11, fill: '#6b7280'}} />
+                                <RechartsTooltip cursor={{fill: 'rgba(0,0,0,0.05)'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                                <Bar dataKey="value" fill="#8b5cf6" radius={[0, 6, 6, 0]}>
+                                    {areaData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Issues by Category (Pie Chart) */}
+                <div className="glass-card p-6 rounded-2xl">
+                    <h3 className="text-lg font-bold text-gray-900 mb-6">Issues by Category</h3>
+                    <div className="h-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie data={categoryData} cx="50%" cy="50%" labelLine={true} label={({name, percent}) => `${name} (${(percent * 100).toFixed(0)}%)`} outerRadius={100} fill="#3b82f6" dataKey="value">
+                                    {categoryData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Status Chart */}
+                <div className="glass-card p-6 rounded-2xl">
+                    <h3 className="text-lg font-bold text-gray-900 mb-6">Workflow Status</h3>
+                    <div className="h-72">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={statusData} margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                                <XAxis dataKey="name" tick={{fontSize: 11, fill: '#6b7280'}} />
+                                <YAxis />
+                                <RechartsTooltip cursor={{fill: 'rgba(0,0,0,0.05)'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                                <Bar dataKey="value" fill="#10b981" radius={[6, 6, 0, 0]}>
+                                    {statusData.map((entry, index) => {
+                                        let color = '#3b82f6';
+                                        if (entry.name === 'RESOLVED') color = '#10b981';
+                                        if (entry.name === 'PENDING') color = '#f59e0b';
+                                        if (entry.name === 'VERIFIED') color = '#8b5cf6';
+                                        if (entry.name === 'IN_PROGRESS') color = '#0ea5e9';
+                                        if (entry.name === 'REJECTED') color = '#ef4444';
+                                        return <Cell key={`cell-${index}`} fill={color} />;
+                                    })}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Priority Chart */}
+                <div className="glass-card p-6 rounded-2xl">
+                    <h3 className="text-lg font-bold text-gray-900 mb-6">Priority Distribution</h3>
+                    <div className="h-72 flex justify-center items-center">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie data={priorityData} cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={4} dataKey="value">
+                                    {priorityData.map((entry, index) => {
+                                        let color = '#3b82f6';
+                                        if(entry.name === 'HIGH') color = '#ef4444';
+                                        if(entry.name === 'MEDIUM') color = '#f59e0b';
+                                        if(entry.name === 'LOW') color = '#10b981';
+                                        return <Cell key={`cell-${index}`} fill={color} />;
+                                    })}
+                                </Pie>
+                                <RechartsTooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                                <Legend verticalAlign="bottom" height={36}/>
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const Admin = () => {
+    const [viewMode, setViewMode] = useState('list');
     const [issues, setIssues] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -28,6 +175,8 @@ const Admin = () => {
     useEffect(() => {
         fetchDepartments().then(setDepartments).catch(() => {});
     }, []);
+
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
     const loadIssues = useCallback(async () => {
         setLoading(true);
@@ -106,12 +255,29 @@ const Admin = () => {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                    <ShieldAlert size={28} className="text-blue-600" />
-                    Admin Dashboard
-                </h1>
-                <p className="text-gray-500 text-sm mt-1">Review, verify, or reject all submitted civic complaints.</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                        <ShieldAlert size={28} className="text-blue-600" />
+                        Admin Dashboard
+                    </h1>
+                    <p className="text-gray-500 text-sm mt-1">Review, verify, or monitor analytics on all submitted civic complaints.</p>
+                </div>
+
+                <div className="flex bg-white/60 p-1 rounded-xl border border-gray-200/50 shadow-sm w-fit">
+                    <button
+                        onClick={() => setViewMode('list')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        <ListIcon size={16} /> List View
+                    </button>
+                    <button
+                        onClick={() => setViewMode('analytics')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === 'analytics' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        <BarChart2 size={16} /> Analytics
+                    </button>
+                </div>
             </div>
 
             {/* Duplicate Result Banner */}
@@ -136,8 +302,14 @@ const Admin = () => {
                 </div>
             )}
 
-            {/* Filters */}
-            <div className="glass-panel p-4 rounded-2xl flex flex-col sm:flex-row gap-3">
+            {/* Analytics View */}
+            {viewMode === 'analytics' && <AnalyticsView issues={issues} />}
+
+            {/* List View */}
+            {viewMode === 'list' && (
+                <>
+                    {/* Filters */}
+                    <div className="glass-panel p-4 rounded-2xl flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-grow">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <input
@@ -183,7 +355,7 @@ const Admin = () => {
                                             <div className="flex items-center gap-3">
                                                 {issue.image_url ? (
                                                     <img className="h-10 w-10 rounded-lg object-cover border border-gray-200 flex-shrink-0"
-                                                        src={`http://localhost:8000${issue.image_url}`} alt="" />
+                                                        src={issue.image_url.startsWith('http') ? issue.image_url : `${apiUrl}${issue.image_url}`} alt="" />
                                                 ) : (
                                                     <div className="h-10 w-10 rounded-lg bg-gray-100 border border-gray-200 flex-shrink-0 flex items-center justify-center text-gray-400 text-xs">No img</div>
                                                 )}
@@ -266,6 +438,8 @@ const Admin = () => {
                     </div>
                 )}
             </div>
+            </>
+            )}
         </div>
     );
 };

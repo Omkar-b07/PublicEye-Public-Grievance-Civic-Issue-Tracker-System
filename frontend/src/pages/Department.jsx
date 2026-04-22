@@ -52,6 +52,7 @@ const Department = () => {
         }
     };
 
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
     const filtered = issues.filter(i =>
         i.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         i.category.toLowerCase().includes(searchQuery.toLowerCase())
@@ -118,7 +119,7 @@ const Department = () => {
                                             <div className="flex items-center gap-3">
                                                 {issue.image_url && (
                                                     <img className="h-10 w-10 rounded-lg object-cover border border-gray-200 flex-shrink-0"
-                                                        src={`http://localhost:8000${issue.image_url}`} alt="" />
+                                                        src={issue.image_url.startsWith('http') ? issue.image_url : `${apiUrl}${issue.image_url}`} alt="" />
                                                 )}
                                                 <div>
                                                     <div className="text-sm font-semibold text-gray-900">{issue.title}</div>

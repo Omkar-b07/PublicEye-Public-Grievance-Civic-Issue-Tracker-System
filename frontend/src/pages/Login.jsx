@@ -9,6 +9,14 @@ const Login = () => {
     const [formData, setFormData] = useState({ email: '', password: '' });
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    
+    // Forgot Password States
+    const [showForgotModal, setShowForgotModal] = useState(false);
+    const [forgotStep, setForgotStep] = useState(1);
+    const [forgotEmail, setForgotEmail] = useState('');
+    const [forgotOtp, setForgotOtp] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [forgotLoading, setForgotLoading] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
 
@@ -43,12 +51,56 @@ const Login = () => {
 
             login(accessToken, meRes.data);
             toast.success('Logged in successfully!');
-            navigate('/dashboard');
+            
+            const role = meRes.data.role;
+            if (role === 'admin') navigate('/admin');
+            else if (role === 'department') navigate('/department');
+            else if (role === 'senior_authority') navigate('/senior-authority');
+            else navigate('/dashboard');
+            
         } catch (error) {
             const msg = error?.response?.data?.detail || 'Invalid email or password';
             toast.error(msg);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleForgotRequest = async (e) => {
+        e.preventDefault();
+        if (!forgotEmail) return toast.error('Please enter your email');
+        setForgotLoading(true);
+        try {
+            await api.post('/auth/forgot-password/request', { email: forgotEmail });
+            toast.success('OTP sent! Check your console/email.');
+            setForgotStep(2);
+        } catch (error) {
+            toast.error(error?.response?.data?.detail || 'Failed to send OTP');
+        } finally {
+            setForgotLoading(false);
+        }
+    };
+
+    const handleForgotReset = async (e) => {
+        e.preventDefault();
+        if (!forgotOtp || !newPassword) return toast.error('Please fill all fields');
+        setForgotLoading(true);
+        try {
+            await api.post('/auth/forgot-password/reset', { 
+                email: forgotEmail, 
+                otp: forgotOtp, 
+                new_password: newPassword 
+            });
+            toast.success('Password reset successfully!');
+            setShowForgotModal(false);
+            setForgotStep(1);
+            setForgotEmail('');
+            setForgotOtp('');
+            setNewPassword('');
+        } catch (error) {
+            toast.error(error?.response?.data?.detail || 'Failed to reset password');
+        } finally {
+            setForgotLoading(false);
         }
     };
 
@@ -139,9 +191,13 @@ const Login = () => {
                             </div>
 
                             <div className="text-sm">
-                                <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
+                                <button 
+                                    type="button" 
+                                    onClick={() => setShowForgotModal(true)} 
+                                    className="font-medium text-blue-600 hover:text-blue-500 bg-transparent border-none p-0 cursor-pointer"
+                                >
                                     Forgot your password?
-                                </a>
+                                </button>
                             </div>
                         </div>
 
@@ -178,6 +234,89 @@ const Login = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Forgot Password Modal */}
+            {showForgotModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-slide-up relative">
+                        <button 
+                            type="button" 
+                            onClick={() => { setShowForgotModal(false); setForgotStep(1); }} 
+                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                        
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">Reset Password</h3>
+                        <p className="text-sm text-gray-500 mb-6">
+                            {forgotStep === 1 ? 'Enter your registered email to receive a password reset OTP.' : 'Enter the OTP sent to your email and your new password.'}
+                        </p>
+
+                        {forgotStep === 1 ? (
+                            <form onSubmit={handleForgotRequest} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Email address</label>
+                                    <input 
+                                        type="email" 
+                                        required 
+                                        value={forgotEmail} 
+                                        onChange={(e) => setForgotEmail(e.target.value)} 
+                                        className="appearance-none block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder="you@example.com"
+                                    />
+                                </div>
+                                <button 
+                                    type="submit" 
+                                    disabled={forgotLoading}
+                                    className="w-full py-2.5 px-4 bg-blue-600 text-white rounded-xl font-medium shadow-md hover:bg-blue-700 transition disabled:opacity-70"
+                                >
+                                    {forgotLoading ? 'Sending...' : 'Send OTP'}
+                                </button>
+                            </form>
+                        ) : (
+                            <form onSubmit={handleForgotReset} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">6-Digit OTP</label>
+                                    <input 
+                                        type="text" 
+                                        required 
+                                        value={forgotOtp} 
+                                        onChange={(e) => setForgotOtp(e.target.value)} 
+                                        className="appearance-none block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 tracking-widest text-center font-bold"
+                                        maxLength="6"
+                                        placeholder="000000"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                                    <input 
+                                        type="password" 
+                                        required 
+                                        value={newPassword} 
+                                        onChange={(e) => setNewPassword(e.target.value)} 
+                                        className="appearance-none block w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder="••••••••"
+                                    />
+                                </div>
+                                <button 
+                                    type="submit" 
+                                    disabled={forgotLoading}
+                                    className="w-full py-2.5 px-4 bg-purple-600 text-white rounded-xl font-medium shadow-md hover:bg-purple-700 transition disabled:opacity-70"
+                                >
+                                    {forgotLoading ? 'Resetting...' : 'Reset Password'}
+                                </button>
+                                <button 
+                                    type="button" 
+                                    onClick={() => setForgotStep(1)}
+                                    className="w-full py-2 px-4 text-sm text-gray-500 hover:text-gray-700 mt-2"
+                                >
+                                    Back
+                                </button>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
