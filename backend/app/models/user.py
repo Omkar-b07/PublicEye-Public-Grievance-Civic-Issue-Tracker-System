@@ -21,5 +21,8 @@ class User(Base):
     role = Column(String, default="citizen", nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    reported_issues = relationship("Issue", foreign_keys="Issue.created_by", back_populates="creator")
+    reported_issues = relationship("Issue", foreign_keys="[Issue.created_by]", back_populates="creator")
     upvotes = relationship("Upvote", back_populates="user")
+
+from app.models.issue import Issue
+from app.models.upvote import Upvote
