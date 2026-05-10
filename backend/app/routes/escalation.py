@@ -10,6 +10,7 @@ Auto-escalation note:
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, and_
 from typing import List
 
 from app.db.database import get_db
@@ -20,8 +21,10 @@ from app.deps import get_current_senior_authority
 
 router = APIRouter(prefix="/escalation", tags=["escalation"])
 
-# How long before an IN_PROGRESS issue is automatically escalated (hours)
-ESCALATION_HOURS = 72
+# Priority-based escalation limits (hours)
+HIGH_PRIORITY_HOURS = 24
+MEDIUM_PRIORITY_HOURS = 72
+LOW_PRIORITY_HOURS = 120
 
 
 def _to_response(issue: Issue) -> dict:
@@ -41,7 +44,7 @@ def get_escalated_issues(
     issues = (
         db.query(Issue)
         .filter(Issue.escalated_at.isnot(None))
-        .filter(Issue.status != "RESOLVED")
+        .filter(or_(Issue.status != "RESOLVED", Issue.is_false_resolution == True))
         .order_by(Issue.escalated_at.asc())
         .all()
     )
@@ -54,15 +57,25 @@ def get_overdue_issues(
     _: User = Depends(get_current_senior_authority),
 ):
     """
-    Returns IN_PROGRESS issues that have exceeded ESCALATION_HOURS without resolution.
+    Returns IN_PROGRESS issues that have exceeded their priority-based time limits without resolution.
     These are time-based escalations (not manual).
     """
-    cutoff = datetime.utcnow() - timedelta(hours=ESCALATION_HOURS)
+    now = datetime.utcnow()
+    high_cutoff = now - timedelta(hours=HIGH_PRIORITY_HOURS)
+    medium_cutoff = now - timedelta(hours=MEDIUM_PRIORITY_HOURS)
+    low_cutoff = now - timedelta(hours=LOW_PRIORITY_HOURS)
+
     issues = (
         db.query(Issue)
         .filter(Issue.status == "IN_PROGRESS")
-        .filter(Issue.created_at < cutoff)
         .filter(Issue.resolved_at.is_(None))
+        .filter(
+            or_(
+                and_(Issue.priority == "HIGH", Issue.created_at < high_cutoff),
+                and_(Issue.priority == "MEDIUM", Issue.created_at < medium_cutoff),
+                and_(Issue.priority == "LOW", Issue.created_at < low_cutoff),
+            )
+        )
         .order_by(Issue.created_at.asc())
         .all()
     )
@@ -97,15 +110,25 @@ def auto_escalate_overdue(
 ):
     """
     Manually trigger auto-escalation logic:
-    Marks all IN_PROGRESS issues older than ESCALATION_HOURS as escalated.
+    Marks all IN_PROGRESS issues older than their priority time limit as escalated.
     In production, this would be called by a background scheduler.
     """
-    cutoff = datetime.utcnow() - timedelta(hours=ESCALATION_HOURS)
+    now = datetime.utcnow()
+    high_cutoff = now - timedelta(hours=HIGH_PRIORITY_HOURS)
+    medium_cutoff = now - timedelta(hours=MEDIUM_PRIORITY_HOURS)
+    low_cutoff = now - timedelta(hours=LOW_PRIORITY_HOURS)
+
     overdue = (
         db.query(Issue)
         .filter(Issue.status == "IN_PROGRESS")
-        .filter(Issue.created_at < cutoff)
         .filter(Issue.escalated_at.is_(None))
+        .filter(
+            or_(
+                and_(Issue.priority == "HIGH", Issue.created_at < high_cutoff),
+                and_(Issue.priority == "MEDIUM", Issue.created_at < medium_cutoff),
+                and_(Issue.priority == "LOW", Issue.created_at < low_cutoff),
+            )
+        )
         .all()
     )
 
@@ -115,4 +138,4 @@ def auto_escalate_overdue(
         count += 1
 
     db.commit()
-    return {"message": f"Auto-escalated {count} overdue issues (>{ESCALATION_HOURS}h with no resolution)."}
+    return {"message": f"Auto-escalated {count} overdue issues."}

@@ -32,6 +32,9 @@ export const deleteIssueById = (id) =>
 export const submitIssueFeedback = (id, feedbackData) =>
     api.post(`/issues/${id}/feedback`, feedbackData).then(r => r.data);
 
+export const flagFalseResolution = (id) =>
+    api.post(`/issues/${id}/flag-false`).then(r => r.data);
+
 
 // ─── Admin ───────────────────────────────────────────────────────────────────
 

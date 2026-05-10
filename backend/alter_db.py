@@ -16,6 +16,12 @@ def upgrade():
     except sqlite3.OperationalError as e:
         print(f"Skipped feedback_text: {e}")
         
+    try:
+        cursor.execute("ALTER TABLE issues ADD COLUMN is_false_resolution BOOLEAN DEFAULT FALSE")
+        print("Added is_false_resolution column.")
+    except sqlite3.OperationalError as e:
+        print(f"Skipped is_false_resolution: {e}")
+        
     conn.commit()
     conn.close()
 

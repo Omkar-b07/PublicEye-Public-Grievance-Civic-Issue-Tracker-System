@@ -44,6 +44,16 @@ with Session(engine) as db:
             password_hash=get_password_hash("dept123"),
             role="department"
         ))
+
+    # ─── Seed Default Senior Authority ───────────────────────────────────────────
+    senior_email = "senior@publiceye.com"
+    if not db.query(User).filter(User.email == senior_email).first():
+        db.add(User(
+            name="Director / Senior Authority",
+            email=senior_email,
+            password_hash=get_password_hash("senior123"),
+            role="senior_authority"
+        ))
         
     db.commit()
 

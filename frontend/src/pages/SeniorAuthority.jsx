@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Crown, AlertTriangle, Clock, CheckCircle2, Zap } from 'lucide-react';
+import { Crown, AlertTriangle, Clock, CheckCircle2, Zap, Flag } from 'lucide-react';
 import toast from 'react-hot-toast';
 import StatusBadge from '../components/StatusBadge';
 import Loader from '../components/Loader';
@@ -126,7 +126,14 @@ const SeniorAuthority = () => {
                                     return (
                                         <tr key={issue.id} className="hover:bg-white/60 transition-colors">
                                             <td className="px-4 py-3">
-                                                <div className="text-sm font-semibold text-gray-900">{issue.title}</div>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="text-sm font-semibold text-gray-900">{issue.title}</div>
+                                                    {issue.is_false_resolution && (
+                                                        <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border border-red-200 shadow-sm flex items-center gap-1">
+                                                            <Flag size={10} /> Disputed
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <div className="text-xs text-gray-500">{issue.address || `${issue.latitude?.toFixed(3)}, ${issue.longitude?.toFixed(3)}`}</div>
                                             </td>
                                             <td className="px-4 py-3 text-sm text-gray-600">{issue.category}</td>
@@ -136,11 +143,11 @@ const SeniorAuthority = () => {
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
-                                                {new Date(issue.created_at).toLocaleDateString()}
+                                                {new Date(issue.created_at + (issue.created_at.endsWith('Z') ? '' : 'Z')).toLocaleDateString()}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
                                                 {view === 'escalated'
-                                                    ? issue.escalated_at ? new Date(issue.escalated_at).toLocaleString() : '—'
+                                                    ? issue.escalated_at ? new Date(issue.escalated_at + (issue.escalated_at.endsWith('Z') ? '' : 'Z')).toLocaleString() : '—'
                                                     : <span className="font-bold text-red-600">{ageHours}h</span>
                                                 }
                                             </td>

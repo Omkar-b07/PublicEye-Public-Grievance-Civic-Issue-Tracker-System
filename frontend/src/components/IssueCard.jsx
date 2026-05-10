@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Calendar, Image as ImageIcon, ThumbsUp, Flag } from 'lucide-react';
+import { MapPin, Calendar, Image as ImageIcon, ThumbsUp, Flag, Clock } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import { upvoteIssue } from '../api/issuesApi';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,41 @@ const PRIORITY_DOT = {
     MEDIUM: 'bg-yellow-400',
     LOW: 'bg-green-500',
 };
+
+const getRemainingTime = (createdAt, priority, status) => {
+    if (status === 'RESOLVED' || status === 'REJECTED') return null;
+
+    const priorityHours = {
+        HIGH: 24,
+        MEDIUM: 72,
+        LOW: 120
+    };
+    
+    const hoursAllowed = priorityHours[priority] || 72;
+    const createdDate = new Date(createdAt);
+    const deadline = new Date(createdDate.getTime() + hoursAllowed * 60 * 60 * 1000);
+    const now = new Date();
+    
+    const diffMs = deadline - now;
+    
+    if (diffMs <= 0) return { text: 'Overdue', color: 'text-red-700 bg-red-100/90 border border-red-200' };
+    
+    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const diffDays = Math.floor(diffHrs / 24);
+    
+    let text = '';
+    if (diffDays > 0) text = `${diffDays}d ${diffHrs % 24}h`;
+    else if (diffHrs > 0) text = `${diffHrs}h ${diffMins}m`;
+    else text = `${diffMins}m`;
+    
+    let color = 'text-green-700 bg-green-100/80 border border-green-200';
+    if (diffDays === 0 && diffHrs < 12) color = 'text-red-700 bg-red-100/80 border border-red-200';
+    else if (diffDays === 0 || diffHrs < 24) color = 'text-orange-700 bg-orange-100/80 border border-orange-200';
+    
+    return { text, color };
+};
+
 
 const IssueCard = ({ issue, onUpvoteChange }) => {
     const navigate = useNavigate();
@@ -44,6 +79,8 @@ const IssueCard = ({ issue, onUpvoteChange }) => {
     const imageSrc = issue.image_url
         ? (issue.image_url.startsWith('http') ? issue.image_url : `${apiUrl}${issue.image_url}`)
         : null;
+
+    const timer = getRemainingTime(issue.created_at, issue.priority, issue.status);
 
     return (
         <div
@@ -85,6 +122,12 @@ const IssueCard = ({ issue, onUpvoteChange }) => {
                     <span className="text-xs font-bold uppercase tracking-wider text-blue-700 bg-blue-100/80 px-2.5 py-1 rounded-md shadow-sm">
                         {issue.category}
                     </span>
+                    {timer && (
+                        <span className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-md shadow-sm ${timer.color}`}>
+                            <Clock size={11} />
+                            {timer.text}
+                        </span>
+                    )}
                 </div>
 
                 <h3 className="font-bold text-gray-900 text-base mb-2 line-clamp-1 group-hover:text-blue-600 transition-colors">
@@ -107,7 +150,7 @@ const IssueCard = ({ issue, onUpvoteChange }) => {
                     <div className="flex items-center gap-2">
                         <span className="flex items-center gap-0.5 text-gray-400">
                             <Calendar size={13} />
-                            {new Date(issue.created_at).toLocaleDateString()}
+                            {new Date(issue.created_at + (issue.created_at.endsWith('Z') ? '' : 'Z')).toLocaleDateString()}
                         </span>
 
                         {/* Upvote button */}

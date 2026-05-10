@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from typing import List, Optional
+from datetime import datetime
 
 from app.db.database import get_db
 from app.models.user import User
@@ -263,4 +264,34 @@ def submit_feedback(
     db.commit()
     db.refresh(issue)
     
+    return _attach_upvote_flag(issue, current_user, db)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Flag False Resolution (citizen)
+# ─────────────────────────────────────────────────────────────────────────────
+@router.post("/{id}/flag-false", response_model=IssueResponse)
+def flag_false_resolution(
+    id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    issue = db.query(Issue).filter(Issue.id == id).first()
+    if not issue:
+        raise HTTPException(status_code=404, detail="Issue not found")
+
+    if issue.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the original creator can flag a false resolution.")
+
+    if issue.status != "RESOLVED":
+        raise HTTPException(status_code=400, detail="Only resolved issues can be flagged.")
+
+    if issue.is_false_resolution:
+        raise HTTPException(status_code=400, detail="This issue has already been flagged.")
+
+    issue.is_false_resolution = True
+    issue.escalated_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(issue)
+
     return _attach_upvote_flag(issue, current_user, db)

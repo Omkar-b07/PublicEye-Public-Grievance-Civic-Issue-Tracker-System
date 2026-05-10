@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, MapPin, Calendar, LayoutList, ThumbsUp, Flag, Star } from 'lucide-react';
+import { ArrowLeft, MapPin, Calendar, LayoutList, ThumbsUp, Flag, Star, Clock } from 'lucide-react';
 import MapComponent from '../components/MapComponent';
 import StatusBadge from '../components/StatusBadge';
 import Loader from '../components/Loader';
-import { fetchIssue, upvoteIssue, submitIssueFeedback } from '../api/issuesApi';
+import { fetchIssue, upvoteIssue, submitIssueFeedback, flagFalseResolution } from '../api/issuesApi';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -13,6 +13,41 @@ const PRIORITY_CONFIG = {
     MEDIUM: { label: 'Medium Priority', cls: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
     LOW: { label: 'Low Priority', cls: 'bg-green-100 text-green-700 border-green-200' },
 };
+
+const getRemainingTime = (createdAt, priority, status) => {
+    if (status === 'RESOLVED' || status === 'REJECTED') return null;
+
+    const priorityHours = {
+        HIGH: 24,
+        MEDIUM: 72,
+        LOW: 120
+    };
+    
+    const hoursAllowed = priorityHours[priority] || 72;
+    const createdDate = new Date(createdAt);
+    const deadline = new Date(createdDate.getTime() + hoursAllowed * 60 * 60 * 1000);
+    const now = new Date();
+    
+    const diffMs = deadline - now;
+    
+    if (diffMs <= 0) return { text: 'Overdue', color: 'text-red-700 bg-red-100/90 border border-red-200' };
+    
+    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const diffDays = Math.floor(diffHrs / 24);
+    
+    let text = '';
+    if (diffDays > 0) text = `${diffDays}d ${diffHrs % 24}h`;
+    else if (diffHrs > 0) text = `${diffHrs}h ${diffMins}m`;
+    else text = `${diffMins}m`;
+    
+    let color = 'text-green-700 bg-green-100/80 border border-green-200';
+    if (diffDays === 0 && diffHrs < 12) color = 'text-red-700 bg-red-100/80 border border-red-200';
+    else if (diffDays === 0 || diffHrs < 24) color = 'text-orange-700 bg-orange-100/80 border border-orange-200';
+    
+    return { text, color };
+};
+
 
 const IssueDetail = () => {
     const { id } = useParams();
@@ -24,6 +59,7 @@ const IssueDetail = () => {
     const [rating, setRating] = useState(0);
     const [feedbackText, setFeedbackText] = useState('');
     const [submittingFeedback, setSubmittingFeedback] = useState(false);
+    const [flagging, setFlagging] = useState(false);
 
     useEffect(() => {
         const load = async () => {
@@ -81,6 +117,20 @@ const IssueDetail = () => {
         }
     };
 
+    const handleFlagFalse = async () => {
+        if (!window.confirm('Are you sure you want to flag this resolution as false? This will escalate the issue to the Senior Authority.')) return;
+        setFlagging(true);
+        try {
+            const updated = await flagFalseResolution(id);
+            setIssue(updated);
+            toast.success('Issue escalated to Senior Authority.');
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'Failed to flag resolution');
+        } finally {
+            setFlagging(false);
+        }
+    };
+
     if (loading) {
         return <div className="h-full flex items-center justify-center min-h-[60vh]"><Loader /></div>;
     }
@@ -88,6 +138,7 @@ const IssueDetail = () => {
 
     const priority = PRIORITY_CONFIG[issue.priority] || PRIORITY_CONFIG.MEDIUM;
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const timer = getRemainingTime(issue.created_at, issue.priority, issue.status);
 
     return (
         <div className="max-w-4xl mx-auto pb-10">
@@ -103,10 +154,18 @@ const IssueDetail = () => {
                         <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">{issue.title}</h1>
                         <div className="flex flex-col items-start gap-2">
                             <StatusBadge status={issue.status} />
-                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border ${priority.cls}`}>
-                                <Flag size={11} />
-                                {priority.label}
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border ${priority.cls}`}>
+                                    <Flag size={11} />
+                                    {priority.label}
+                                </span>
+                                {timer && (
+                                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border ${timer.color}`}>
+                                        <Clock size={11} />
+                                        {timer.text} remaining
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -117,7 +176,7 @@ const IssueDetail = () => {
                         </div>
                         <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded">
                             <Calendar size={14} className="text-gray-400" />
-                            <span>{new Date(issue.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                            <span>{new Date(issue.created_at + (issue.created_at.endsWith('Z') ? '' : 'Z')).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span>
                         </div>
                         {(issue.address || issue.latitude) && (
                             <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded max-w-xs">
@@ -170,7 +229,7 @@ const IssueDetail = () => {
                         {issue.resolved_at && (
                             <div className="mt-4 p-3 bg-green-50 rounded-xl border border-green-200">
                                 <p className="text-sm text-green-700 font-medium">
-                                    ✅ Resolved on {new Date(issue.resolved_at).toLocaleString()}
+                                    ✅ Resolved on {new Date(issue.resolved_at + (issue.resolved_at.endsWith('Z') ? '' : 'Z')).toLocaleString()}
                                 </p>
                             </div>
                         )}
@@ -193,7 +252,25 @@ const IssueDetail = () => {
                                         )}
                                     </div>
                                 ) : (user && user.id === issue.created_by) ? (
-                                    <form onSubmit={handleFeedbackSubmit} className="bg-white/60 p-4 rounded-xl border border-gray-200/60 shadow-sm">
+                                    <>
+                                        {issue.is_false_resolution ? (
+                                            <div className="bg-red-50 text-red-700 p-4 rounded-xl border border-red-200 mb-4 shadow-sm flex items-start gap-2">
+                                                <Flag className="flex-shrink-0 mt-0.5" size={16} />
+                                                <p className="text-sm font-medium">🚩 You have disputed this resolution. It is under review by Senior Authority.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="flex justify-end mb-4">
+                                                <button
+                                                    onClick={handleFlagFalse}
+                                                    disabled={flagging}
+                                                    className="flex items-center gap-1.5 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg border border-red-200 transition-colors disabled:opacity-50"
+                                                >
+                                                    <Flag size={14} />
+                                                    {flagging ? 'Flagging...' : 'Flag as False Resolution'}
+                                                </button>
+                                            </div>
+                                        )}
+                                        <form onSubmit={handleFeedbackSubmit} className="bg-white/60 p-4 rounded-xl border border-gray-200/60 shadow-sm">
                                         <p className="text-sm text-gray-600 mb-3">How was your experience getting this resolved?</p>
                                         <div className="flex items-center gap-2 mb-4">
                                             {[1,2,3,4,5].map(star => (
@@ -218,7 +295,8 @@ const IssueDetail = () => {
                                         >
                                             {submittingFeedback ? 'Submitting...' : 'Submit Feedback'}
                                         </button>
-                                    </form>
+                                        </form>
+                                    </>
                                 ) : (
                                     <p className="text-sm text-gray-500 italic">No feedback provided yet.</p>
                                 )}

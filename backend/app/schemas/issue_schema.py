@@ -40,6 +40,7 @@ class IssueResponse(BaseModel):
 
     feedback_rating: Optional[int] = None
     feedback_text: Optional[str] = None
+    is_false_resolution: bool
 
     # Set by the API endpoint based on current user's upvote state
     user_has_upvoted: Optional[bool] = False

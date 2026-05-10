@@ -39,6 +39,7 @@ class Issue(Base):
     # Feedback
     feedback_rating = Column(Integer, nullable=True)
     feedback_text = Column(Text, nullable=True)
+    is_false_resolution = Column(Boolean, default=False, nullable=False)
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
