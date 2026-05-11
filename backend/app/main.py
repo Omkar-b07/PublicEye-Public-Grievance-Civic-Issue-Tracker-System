@@ -10,12 +10,9 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app.utils.security import get_password_hash
 
-# ─── Create all tables on startup (safe for SQLite dev) ──────────────────────
-# In production with PostgreSQL, use Alembic migrations exclusively.
+
 Base.metadata.create_all(bind=engine)
 
-# ─── Seed Default Admin User ─────────────────────────────────────────────────
-# This ensures there is always at least one admin account available.
 with Session(engine) as db:
     admin_email = "admin@publiceye.com"
     if not db.query(User).filter(User.email == admin_email).first():
@@ -26,7 +23,7 @@ with Session(engine) as db:
             role="admin"
         ))
     
-    # ─── Seed Default Departments ────────────────────────────────────────────────
+    #  Seed Default Departments 
     dept_email = "roads@publiceye.com"
     if not db.query(User).filter(User.email == dept_email).first():
         db.add(User(
@@ -45,7 +42,7 @@ with Session(engine) as db:
             role="department"
         ))
 
-    # ─── Seed Default Senior Authority ───────────────────────────────────────────
+    # Seed Default Senior Authority 
     senior_email = "senior@publiceye.com"
     if not db.query(User).filter(User.email == senior_email).first():
         db.add(User(
@@ -57,7 +54,7 @@ with Session(engine) as db:
         
     db.commit()
 
-# ─── Ensure upload directory exists ──────────────────────────────────────────
+#  Ensure upload directory exists 
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI(
@@ -66,7 +63,7 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# ─── CORS ─────────────────────────────────────────────────────────────────────
+#  CORS 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://localhost:3000", "*"],
@@ -75,10 +72,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ─── Static files (uploaded images) ──────────────────────────────────────────
+#  Static files (uploaded images) 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# ─── Routers ─────────────────────────────────────────────────────────────────
+#  Routers 
 app.include_router(auth.router)
 app.include_router(issues.router)
 app.include_router(admin.router)
